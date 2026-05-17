@@ -1,0 +1,12 @@
+{
+  "failure_modes": {
+    "subjective":          "criterion",
+    "non_atomic":          "criterion",
+    "ungrounded":          "criterion",
+    "misaligned_or_rigid": "criterion",
+    "missing_criteria":    "rubric",
+    "hackable":            "criterion",
+    "low_signal":          "rubric",
+    "redundant_criteria":  "rubric"
+  }
+}

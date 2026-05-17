@@ -1,0 +1,27 @@
+[project]
+name = "rift"
+version = "0.1.0"
+description = "Automated diagnostics for evaluation rubrics, based on the RIFT taxonomy"
+requires-python = ">=3.11"
+dependencies = [
+    "medicalsphere-hopper[openai,google] @ git+https://github.com/medicalsphere/hopper.git",
+    "datasets>=2.0",
+    "tqdm>=4.0",
+    "matplotlib>=3.10.9",
+    "seaborn>=0.13.2",
+    "scikit-learn>=1.8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[dependency-groups]
+dev = ["python-dotenv>=1.0"]
+notebooks = ["jupyter>=1.0", "pandas>=2.0", "matplotlib>=3.7", "seaborn>=0.13"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
