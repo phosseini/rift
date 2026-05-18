@@ -81,6 +81,18 @@ All experiments share the same CLI parameters:
 Defaults for `--n` and `--concurrency` differ per experiment — see each experiment section above.
 
 
+## Datasets
+
+| Dataset | HuggingFace | Type | Used in |
+|---|---|---|---|
+| AdvancedIF | 🤗 [facebook/AdvancedIF](https://huggingface.co/datasets/facebook/AdvancedIF) | Human-curated | Prevalence experiment |
+| ResearchRubrics | 🤗 [ScaleAI/researchrubrics](https://huggingface.co/datasets/ScaleAI/researchrubrics) | Human-written | Prevalence experiment |
+| WildChecklists | 🤗 [viswavi/wildchecklists](https://huggingface.co/datasets/viswavi/wildchecklists) | LLM-generated | Prevalence experiment |
+| OpenRubrics | 🤗 [OpenRubrics/OpenRubrics](https://huggingface.co/datasets/OpenRubrics/OpenRubrics) | LLM-generated | Prevalence experiment |
+| Auto-Rubric | 🤗 [agentscope-ai/Auto-Rubric](https://huggingface.co/datasets/agentscope-ai/Auto-Rubric) | LLM-generated | Prevalence experiment |
+| HealthBench Professional | 🤗 [openai/healthbench-professional](https://huggingface.co/datasets/openai/healthbench-professional) | Physician-written | HBP experiment |
+
+
 ## Judges
 
 | Model ID | Provider | Notes |
