@@ -94,6 +94,7 @@ async def run_classify(
     config: ModelConfig,
     concurrency: int,
     out_path: Path,
+    n_votes: int = 1,
 ) -> list[dict]:
     fm_labels = LABELS
     semaphore = asyncio.Semaphore(concurrency)
@@ -105,38 +106,46 @@ async def run_classify(
         for rubric in rubrics
     ]
 
-    async def classify_one(source: str, rubric: Rubric) -> dict | None:
+    async def classify_one(source: str, rubric: Rubric) -> dict:
         nonlocal failed
         async with semaphore:
+            record = {
+                "judge_model": config.model,
+                "eval_mode": "joined",
+                "included_failure_modes": fm_labels,
+                "n_votes": n_votes,
+                "source": source,
+                **rubric.metadata,
+                "rubric_text": rubric.rubric_text,
+            }
             try:
-                result = await classify(rubric, config)
-                return {
-                    "judge_model": config.model,
-                    "eval_mode": "joined",
-                    "included_failure_modes": fm_labels,
-                    "source": source,
-                    **rubric.metadata,
+                result = await classify(rubric, config, n_votes=n_votes)
+                record.update({
                     "labels": sorted(lbl.label for lbl in result.labels),
-                }
+                    "votes": result.votes,
+                })
             except Exception as e:
                 failed += 1
-                print(f"  [warn] classify failed ({type(e).__name__}): {e}")
-                return None
+                record.update({
+                    "labels": [],
+                    "votes": [],
+                    "error": f"{type(e).__name__}: {e}",
+                })
+            return record
 
     tasks = [asyncio.create_task(classify_one(src, r)) for src, r in flat]
     records = []
 
-    with open(out_path, "w") as f, tqdm(total=len(flat), unit="rubric") as bar:
+    with open(out_path, "w") as f, tqdm(total=len(flat), unit="rubric", dynamic_ncols=True) as bar:
         for coro in asyncio.as_completed(tasks):
             record = await coro
-            if record is not None:
-                f.write(json.dumps(record) + "\n")
-                f.flush()
-                records.append(record)
+            f.write(json.dumps(record) + "\n")
+            f.flush()
+            records.append(record)
             bar.update(1)
 
     if failed:
-        print(f"  [warn] {failed}/{len(flat)} calls failed and were skipped.")
+        print(f"  [warn] {failed}/{len(flat)} calls failed — error field set in JSONL records.")
 
     return records
 
@@ -208,7 +217,7 @@ def build_configs(judges: list[str]) -> list[ModelConfig]:
     return configs
 
 
-async def main(n: int, concurrency: int, no_cache: bool, judges: list[str]) -> None:
+async def main(n: int, concurrency: int, no_cache: bool, judges: list[str], n_votes: int = 1) -> None:
     configs = build_configs(judges)
 
     print(f"Loading {n} rubrics from each of {len(SOURCES)} sources ...")
@@ -230,7 +239,7 @@ async def main(n: int, concurrency: int, no_cache: bool, judges: list[str]) -> N
             timestamp = datetime.now(timezone.utc).isoformat()
             path = _result_path(timestamp)
             print(f"\nClassifying with {config.model} ...")
-            records = await run_classify(rubrics_by_source, config, concurrency, path)
+            records = await run_classify(rubrics_by_source, config, concurrency, path, n_votes=n_votes)
             print(f"  Results saved to {path}")
             print_per_source_table(records, n, config.model)
             print_comparison_table(records)
@@ -246,5 +255,7 @@ if __name__ == "__main__":
                         help="Re-run even if cached results exist")
     parser.add_argument("--judge", nargs="+", default=DEFAULT_JUDGES, metavar="MODEL",
                         help=f"Judge model(s). Known: {list(JUDGE_REGISTRY)}. Default: {DEFAULT_JUDGES}")
+    parser.add_argument("--votes", type=int, default=1,
+                        help="Number of judge runs per rubric; majority vote used when >1 (default: 1)")
     args = parser.parse_args()
-    asyncio.run(main(args.n, args.concurrency, args.no_cache, args.judge))
+    asyncio.run(main(args.n, args.concurrency, args.no_cache, args.judge, args.votes))

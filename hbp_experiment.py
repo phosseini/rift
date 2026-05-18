@@ -120,14 +120,18 @@ async def run_classify(
     out_path: Path,
     dataset: str,
     append: bool = False,
+    n_votes: int = 1,
 ) -> list[dict]:
     semaphore = asyncio.Semaphore(concurrency)
     fm_labels = sorted(fm.label for fm in failure_modes)
 
-    async def classify_one(rubric: Rubric) -> tuple[Rubric, set[str]]:
+    async def classify_one(rubric: Rubric) -> tuple[Rubric, set[str], list[list[str]], str | None]:
         async with semaphore:
-            result = await classify(rubric, config, failure_modes=failure_modes)
-            return rubric, {lbl.label for lbl in result.labels}
+            try:
+                result = await classify(rubric, config, failure_modes=failure_modes, n_votes=n_votes)
+                return rubric, {lbl.label for lbl in result.labels}, result.votes, None
+            except Exception as e:
+                return rubric, set(), [], f"{type(e).__name__}: {e}"
 
     total = len(rubrics)
     eval_mode = rubrics[0].metadata.get("eval_mode", "unknown") if rubrics else "unknown"
@@ -135,22 +139,32 @@ async def run_classify(
 
     tasks = [asyncio.create_task(classify_one(r)) for r in rubrics]
     records = []
+    failed = 0
 
     write_mode = "a" if append else "w"
-    with open(out_path, write_mode) as f, tqdm(total=total, unit="rubric") as bar:
+    with open(out_path, write_mode) as f, tqdm(total=total, unit="rubric", dynamic_ncols=True) as bar:
         for coro in asyncio.as_completed(tasks):
-            rubric, labels = await coro
+            rubric, labels, votes, error = await coro
             record = {
                 "dataset": dataset,
                 "judge_model": config.model,
                 **rubric.metadata,
+                "rubric_text": rubric.rubric_text,
                 "labels": sorted(labels),
+                "votes": votes,
                 "included_failure_modes": fm_labels,
+                "n_votes": n_votes,
             }
+            if error:
+                record["error"] = error
+                failed += 1
             f.write(json.dumps(record) + "\n")
             f.flush()
             records.append(record)
             bar.update(1)
+
+    if failed:
+        print(f"  [warn] {failed}/{total} calls failed — error field set in JSONL records.")
 
     return records
 
@@ -276,7 +290,7 @@ def build_configs(judges: list[str]) -> list[ModelConfig]:
     return configs
 
 
-async def main(concurrency: int, no_cache: bool, judges: list[str], n: int | None = None, eval_strategy: str | None = None) -> None:
+async def main(concurrency: int, no_cache: bool, judges: list[str], n: int | None = None, eval_strategy: str | None = None, n_votes: int = 1) -> None:
     cfg = load_config()
     strategy = eval_strategy or cfg.get("eval_strategy", "scoped")
     fm_cfg = cfg.get("failure_modes", {fm.label: fm.scope for fm in FAILURE_MODES})
@@ -317,7 +331,7 @@ async def main(concurrency: int, no_cache: bool, judges: list[str], n: int | Non
                 jr.metadata = {**jr.metadata, "eval_mode": "joined"}
             records += await run_classify(
                 joined_rubrics, config, all_fms, concurrency, path,
-                "healthbench_professional", append=appending,
+                "healthbench_professional", append=appending, n_votes=n_votes,
             )
             appending = True
 
@@ -326,13 +340,13 @@ async def main(concurrency: int, no_cache: bool, judges: list[str], n: int | Non
             if criterion_fms:
                 records += await run_classify(
                     per_criterion, config, criterion_fms, concurrency, path,
-                    "healthbench_professional", append=appending,
+                    "healthbench_professional", append=appending, n_votes=n_votes,
                 )
                 appending = True
             if rubric_fms:
                 records += await run_classify(
                     per_conversation, config, rubric_fms, concurrency, path,
-                    "healthbench_professional", append=appending,
+                    "healthbench_professional", append=appending, n_votes=n_votes,
                 )
 
         print(f"  Results saved to {path}")
@@ -348,5 +362,7 @@ if __name__ == "__main__":
                         help="Limit to first N conversations (default: all 525)")
     parser.add_argument("--eval-strategy", choices=["joined", "scoped"], default=None,
                         help="Override eval_strategy from config.json")
+    parser.add_argument("--votes", type=int, default=1,
+                        help="Number of judge runs per rubric; majority vote used when >1 (default: 1)")
     args = parser.parse_args()
-    asyncio.run(main(args.concurrency, args.no_cache, args.judge, args.n, args.eval_strategy))
+    asyncio.run(main(args.concurrency, args.no_cache, args.judge, args.n, args.eval_strategy, args.votes))

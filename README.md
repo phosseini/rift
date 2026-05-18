@@ -44,13 +44,14 @@ Reproduces RIFT paper Table 2. Evaluates failure mode prevalence across five rub
 uv run python prevalence_experiment.py --n 50 --concurrency 10 --judge gpt-5.2-2025-12-11
 ```
 
-Results are saved to `results/prevalence_<timestamp>.jsonl` and cached per judge.
+Results are saved to `results/prevalence_<timestamp>.jsonl` and cached per judge. Each record includes `rubric_text`, `labels` (majority-voted), `votes` (raw per-run outputs), `n_votes`, and an `error` field if the API call failed.
 
 | Parameter | Default | Description |
 |---|---|---|
 | `--n` | `10` | Number of rubrics per source (5 sources → n×5 total API calls) |
 | `--concurrency` | `10` | Max simultaneous API calls |
 | `--judge` | `gpt-5.4-2026-03-05 gemini-3.1-pro-preview` | One or more judge models (space-separated) |
+| `--votes` | `1` | Number of judge runs per rubric; majority vote when >1 (paper uses 5) |
 | `--no-cache` | off | Force re-run even if cached results exist |
 
 
@@ -62,7 +63,7 @@ Runs RIFT on all 525 conversations and 1,135 rubric criteria from [HealthBench P
 uv run python hbp_experiment.py --concurrency 8 --judge gpt-5.4-2026-03-05 --eval-strategy scoped
 ```
 
-Results are saved to `results/hbp_<timestamp>.jsonl` and cached per judge + strategy.
+Results are saved to `results/hbp_<timestamp>.jsonl` and cached per judge + strategy. Each record includes `rubric_text`, `labels` (majority-voted), `votes` (raw per-run outputs), `n_votes`, and an `error` field if the API call failed.
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -70,6 +71,7 @@ Results are saved to `results/hbp_<timestamp>.jsonl` and cached per judge + stra
 | `--concurrency` | `2` | Max simultaneous API calls |
 | `--judge` | `gpt-5.4-2026-03-05` | One or more judge models (space-separated) |
 | `--n` | all 525 | Limit to first N conversations |
+| `--votes` | `1` | Number of judge runs per rubric; majority vote when >1 (paper uses 5) |
 | `--no-cache` | off | Force re-run even if cached results exist |
 
 #### Evaluation strategies

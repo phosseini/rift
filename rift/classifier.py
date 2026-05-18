@@ -65,12 +65,22 @@ async def classify(
 
     vote_counts: dict[str, list[FailureModeLabel]] = {}
     for run_labels in runs:
+        seen = set()
         for label in run_labels:
-            vote_counts.setdefault(label.label, []).append(label)
+            if label.label not in seen:
+                vote_counts.setdefault(label.label, []).append(label)
+                seen.add(label.label)
 
     majority_labels = [
         instances[0]
         for instances in vote_counts.values()
         if len(instances) >= threshold
     ]
-    return DiagnosticResult(rubric=rubric, labels=majority_labels, model=config.model, n_votes=n_votes)
+    per_run_votes = [sorted(lbl.label for lbl in run_labels) for run_labels in runs]
+    return DiagnosticResult(
+        rubric=rubric,
+        labels=majority_labels,
+        model=config.model,
+        n_votes=n_votes,
+        votes=per_run_votes,
+    )

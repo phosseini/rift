@@ -19,9 +19,10 @@ class FailureModeLabel:
 @dataclass
 class DiagnosticResult:
     rubric: Rubric
-    labels: list[FailureModeLabel]
+    labels: list[FailureModeLabel]       # majority-voted final labels
     model: str
     n_votes: int = 1
+    votes: list[list[str]] = field(default_factory=list)  # per-run label sets
 
 
 @dataclass

@@ -47,7 +47,7 @@ def load_advancedif(n: int, seed: int = 42) -> list[Rubric]:
         metadata = _parse_field(row["prompt_metadata"])
         user_msgs = [m["content"] for m in history if m.get("role") == "user"]
         input_context = user_msgs[-1] if user_msgs else _format_conversation(history)
-        criteria = metadata.get("rubrics", [])
+        criteria = _parse_field(metadata.get("rubrics", []))
         result.append(Rubric(
             input_context=input_context,
             rubric_text="\n".join(f"- {c}" for c in criteria),
