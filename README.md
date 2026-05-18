@@ -46,13 +46,7 @@ uv run python prevalence_experiment.py --n 50 --concurrency 10 --judge gpt-5.2-2
 
 Results are saved to `results/prevalence_<timestamp>.jsonl` and cached per judge. Each record includes `rubric_text`, `labels` (majority-voted), `votes` (raw per-run outputs), `n_votes`, and an `error` field if the API call failed.
 
-| Parameter | Default | Description |
-|---|---|---|
-| `--n` | `10` | Number of rubrics per source (5 sources → n×5 total API calls) |
-| `--concurrency` | `10` | Max simultaneous API calls |
-| `--judge` | `gpt-5.4-2026-03-05 gemini-3.1-pro-preview` | One or more judge models (space-separated) |
-| `--votes` | `1` | Number of judge runs per rubric; majority vote when >1 (paper uses 5) |
-| `--no-cache` | off | Force re-run even if cached results exist |
+Default for `--n` is `10` (5 sources → 50 total API calls). The paper uses `--votes 5`.
 
 
 ### 2. HBP experiment (`hbp_experiment.py`)
@@ -65,21 +59,25 @@ uv run python hbp_experiment.py --concurrency 8 --judge gpt-5.4-2026-03-05 --eva
 
 Results are saved to `results/hbp_<timestamp>.jsonl` and cached per judge + strategy. Each record includes `rubric_text`, `labels` (majority-voted), `votes` (raw per-run outputs), `n_votes`, and an `error` field if the API call failed.
 
-| Parameter | Default | Description |
-|---|---|---|
-| `--eval-strategy` | `scoped` | Evaluation strategy (see table below) |
-| `--concurrency` | `2` | Max simultaneous API calls |
-| `--judge` | `gpt-5.4-2026-03-05` | One or more judge models (space-separated) |
-| `--n` | all 525 | Limit to first N conversations |
-| `--votes` | `1` | Number of judge runs per rubric; majority vote when >1 (paper uses 5) |
-| `--no-cache` | off | Force re-run even if cached results exist |
+`--eval-strategy` controls how failure modes are applied (default: `scoped`):
 
-#### Evaluation strategies
+- **`joined`** — all rubric criteria for a conversation are concatenated into one string and evaluated with all failure modes together. Equivalent to the paper's method.
+- **`scoped`** — criterion-scope failure modes run on each criterion individually; rubric-scope modes run on the full joined rubric. Produces `per_criterion` and `per_conversation` records, letting you pinpoint failure modes at the criterion level rather than just the rubric.
 
-| Strategy | Description | eval_mode in results |
-|---|---|---|
-| `joined` | All rubric criteria for a conversation concatenated into one string, evaluated with all enabled failure modes. Equivalent to the paper's method applied at conversation level. | `joined` |
-| `scoped` | Criterion-scope failure modes evaluated on each criterion individually; rubric-scope modes evaluated on the full joined rubric. Avoids inflating rubric-level failure modes on single criteria. | `per_criterion` + `per_conversation` |
+
+## Parameters
+
+All experiments share the same CLI parameters:
+
+```
+--judge        gpt-5.4-2026-03-05        Judge model(s) to use, space-separated. See Judges section for available models.
+--concurrency  10                         Max simultaneous API calls. Lower this if you hit rate limits.
+--n            (experiment-specific)      Limit to first N items (rubrics or conversations). Useful for quick tests.
+--votes        1                          Number of judge runs per rubric; majority vote is used when >1. The paper uses 5.
+--no-cache     off                        Force re-run even if cached results exist for this judge + strategy.
+```
+
+Defaults for `--n` and `--concurrency` differ per experiment — see each experiment section above.
 
 
 ## Judges

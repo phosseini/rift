@@ -134,7 +134,11 @@ async def run_classify(
                         classify(rubric, config, failure_modes=failure_modes, n_votes=n_votes),
                         timeout=120,
                     )
-                    return rubric, {lbl.label for lbl in result.labels}, result.votes, None
+                    votes = [
+                        [{"label": lbl.label, "justification": lbl.justification, "quote": lbl.quote} for lbl in run]
+                        for run in result.votes
+                    ]
+                    return rubric, {lbl.label for lbl in result.labels}, votes, None
                 except Exception as e:
                     last_error = f"{type(e).__name__}: {e}"
                     await asyncio.sleep(2 ** attempt)

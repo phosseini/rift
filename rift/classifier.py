@@ -58,7 +58,7 @@ async def classify(
     fms = failure_modes if failure_modes is not None else FAILURE_MODES
     if n_votes == 1:
         labels = await _run_once(rubric, config, fms)
-        return DiagnosticResult(rubric=rubric, labels=labels, model=config.model, n_votes=1)
+        return DiagnosticResult(rubric=rubric, labels=labels, model=config.model, n_votes=1, votes=[labels])
 
     runs = await asyncio.gather(*[_run_once(rubric, config, fms) for _ in range(n_votes)])
     threshold = math.ceil(n_votes / 2)
@@ -76,7 +76,10 @@ async def classify(
         for instances in vote_counts.values()
         if len(instances) >= threshold
     ]
-    per_run_votes = [sorted(lbl.label for lbl in run_labels) for run_labels in runs]
+    per_run_votes = [
+        sorted(run_labels, key=lambda lbl: lbl.label)
+        for run_labels in runs
+    ]
     return DiagnosticResult(
         rubric=rubric,
         labels=majority_labels,

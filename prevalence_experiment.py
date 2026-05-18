@@ -126,7 +126,10 @@ async def run_classify(
                     )
                     record.update({
                         "labels": sorted(lbl.label for lbl in result.labels),
-                        "votes": result.votes,
+                        "votes": [
+                            [{"label": lbl.label, "justification": lbl.justification, "quote": lbl.quote} for lbl in run]
+                            for run in result.votes
+                        ],
                     })
                     last_error = None
                     break

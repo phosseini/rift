@@ -22,7 +22,7 @@ class DiagnosticResult:
     labels: list[FailureModeLabel]       # majority-voted final labels
     model: str
     n_votes: int = 1
-    votes: list[list[str]] = field(default_factory=list)  # per-run label sets
+    votes: list[list[FailureModeLabel]] = field(default_factory=list)  # per-run label sets
 
 
 @dataclass
