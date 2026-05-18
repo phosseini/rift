@@ -127,11 +127,18 @@ async def run_classify(
 
     async def classify_one(rubric: Rubric) -> tuple[Rubric, set[str], list[list[str]], str | None]:
         async with semaphore:
-            try:
-                result = await classify(rubric, config, failure_modes=failure_modes, n_votes=n_votes)
-                return rubric, {lbl.label for lbl in result.labels}, result.votes, None
-            except Exception as e:
-                return rubric, set(), [], f"{type(e).__name__}: {e}"
+            last_error = None
+            for attempt in range(3):
+                try:
+                    result = await asyncio.wait_for(
+                        classify(rubric, config, failure_modes=failure_modes, n_votes=n_votes),
+                        timeout=120,
+                    )
+                    return rubric, {lbl.label for lbl in result.labels}, result.votes, None
+                except Exception as e:
+                    last_error = f"{type(e).__name__}: {e}"
+                    await asyncio.sleep(2 ** attempt)
+            return rubric, set(), [], last_error
 
     total = len(rubrics)
     eval_mode = rubrics[0].metadata.get("eval_mode", "unknown") if rubrics else "unknown"
@@ -271,9 +278,10 @@ def analyze(records: list[dict], model: str) -> None:
 # ── main ─────────────────────────────────────────────────────────────────────
 
 JUDGE_REGISTRY: dict[str, tuple[str, str]] = {
-    "gpt-5.2-2025-12-11":       ("openai", "OPENAI_API_KEY"),
-    "gpt-5.4-2026-03-05":       ("openai", "OPENAI_API_KEY"),
-    "gemini-3.1-pro-preview":   ("google", "GEMINI_API_KEY"),
+    "gpt-5.2-2025-12-11":         ("openai", "OPENAI_API_KEY"),
+    "gpt-5.4-2026-03-05":         ("openai", "OPENAI_API_KEY"),
+    "gemini-3.1-pro-preview":     ("google", "GEMINI_API_KEY"),
+    "gemini-3.1-flash-lite":      ("google", "GEMINI_API_KEY"),
 }
 
 DEFAULT_JUDGES = ["gpt-5.4-2026-03-05"]

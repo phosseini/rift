@@ -118,19 +118,24 @@ async def run_classify(
                 **rubric.metadata,
                 "rubric_text": rubric.rubric_text,
             }
-            try:
-                result = await classify(rubric, config, n_votes=n_votes)
-                record.update({
-                    "labels": sorted(lbl.label for lbl in result.labels),
-                    "votes": result.votes,
-                })
-            except Exception as e:
+            last_error = None
+            for attempt in range(3):
+                try:
+                    result = await asyncio.wait_for(
+                        classify(rubric, config, n_votes=n_votes), timeout=120
+                    )
+                    record.update({
+                        "labels": sorted(lbl.label for lbl in result.labels),
+                        "votes": result.votes,
+                    })
+                    last_error = None
+                    break
+                except Exception as e:
+                    last_error = f"{type(e).__name__}: {e}"
+                    await asyncio.sleep(2 ** attempt)
+            if last_error:
                 failed += 1
-                record.update({
-                    "labels": [],
-                    "votes": [],
-                    "error": f"{type(e).__name__}: {e}",
-                })
+                record.update({"labels": [], "votes": [], "error": last_error})
             return record
 
     tasks = [asyncio.create_task(classify_one(src, r)) for src, r in flat]
@@ -198,9 +203,10 @@ def print_comparison_table(records: list[dict]) -> None:
 # ── main ─────────────────────────────────────────────────────────────────────
 
 JUDGE_REGISTRY: dict[str, tuple[str, str]] = {
-    "gpt-5.2-2025-12-11":       ("openai", "OPENAI_API_KEY"),
-    "gpt-5.4-2026-03-05":       ("openai", "OPENAI_API_KEY"),
-    "gemini-3.1-pro-preview":   ("google", "GEMINI_API_KEY"),
+    "gpt-5.2-2025-12-11":         ("openai", "OPENAI_API_KEY"),
+    "gpt-5.4-2026-03-05":         ("openai", "OPENAI_API_KEY"),
+    "gemini-3.1-pro-preview":     ("google", "GEMINI_API_KEY"),
+    "gemini-3.1-flash-lite":      ("google", "GEMINI_API_KEY"),
 }
 
 DEFAULT_JUDGES = ["gpt-5.4-2026-03-05", "gemini-3.1-pro-preview"]
