@@ -79,6 +79,31 @@ Results are saved to `results/hbp_<timestamp>.jsonl` and cached per judge + stra
 - **`scoped`** (default) — criterion-scope failure modes run on each criterion individually; rubric-scope modes run on the full joined rubric. Produces `per_criterion` and `per_conversation` records, letting you pinpoint failure modes at the criterion level rather than just the rubric.
 
 
+## Bring your own dataset
+
+To run RIFT on any rubric dataset, prepare a JSONL file where each line has two required fields:
+
+```jsonl
+{"input_context": "Write a haiku about winter.", "rubric_text": "5 pts: Contains exactly 17 syllables in 5-7-5 structure."}
+{"input_context": "Summarize the article.", "rubric_text": "10 pts: Covers all main points accurately."}
+```
+
+Any additional fields are passed through as metadata in the output. Then run:
+
+```bash
+uv run python run.py --input my_rubrics.jsonl
+uv run python run.py --input my_rubrics.jsonl --eval-strategy scoped --votes 3 --judge gpt-5.4-2026-03-05
+```
+
+A sample file with 10 rubrics drawn from the five paper datasets is included for quick testing:
+
+```bash
+uv run python run.py --input sample_rubrics.jsonl --concurrency 5 --judge gpt-5.4-2026-03-05
+```
+
+Results are saved to `results/run_<timestamp>.jsonl` with the same schema as the other experiments.
+
+
 ## Parameters
 
 All experiments share the same CLI parameters:
