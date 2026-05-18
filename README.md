@@ -4,7 +4,6 @@ Automated diagnostics for rubric quality. RIFT classifies rubric criteria agains
 
 > **Paper:** [RIFT: A RubrIc Failure Mode Taxonomy and Automated Diagnostics](https://arxiv.org/abs/2604.01375)
 
----
 
 ## Installation
 
@@ -23,7 +22,6 @@ OPENAI_API_KEY=...
 GEMINI_API_KEY=...
 ```
 
----
 
 ## Quick smoke test
 
@@ -35,7 +33,6 @@ uv run python prevalence_experiment.py --n 3 --concurrency 5 --judge gpt-5.4-202
 uv run python hbp_experiment.py --n 3 --concurrency 3 --judge gpt-5.4-2026-03-05 --eval-strategy scoped
 ```
 
----
 
 ## Experiments
 
@@ -56,7 +53,6 @@ Results are saved to `results/prevalence_<timestamp>.jsonl` and cached per judge
 | `--judge` | `gpt-5.4-2026-03-05 gemini-3.1-pro-preview` | One or more judge models (space-separated) |
 | `--no-cache` | off | Force re-run even if cached results exist |
 
----
 
 ### 2. HBP experiment (`hbp_experiment.py`)
 
@@ -83,7 +79,6 @@ Results are saved to `results/hbp_<timestamp>.jsonl` and cached per judge + stra
 | `joined` | All rubric criteria for a conversation concatenated into one string, evaluated with all enabled failure modes. Equivalent to the paper's method applied at conversation level. | `joined` |
 | `scoped` | Criterion-scope failure modes evaluated on each criterion individually; rubric-scope modes evaluated on the full joined rubric. Avoids inflating rubric-level failure modes on single criteria. | `per_criterion` + `per_conversation` |
 
----
 
 ## Judges
 
@@ -95,7 +90,6 @@ Results are saved to `results/hbp_<timestamp>.jsonl` and cached per judge + stra
 
 Pass one or more judges via `--judge`. Results for each judge are cached and analyzed separately.
 
----
 
 ## Failure modes
 
@@ -114,7 +108,6 @@ Pass one or more judges via `--judge`. Results for each judge are cached and ana
 
 Scopes can be overridden per-experiment in `config.json`.
 
----
 
 ## Configuration (`config.json`)
 
@@ -135,7 +128,6 @@ Controls which failure modes are enabled and their scopes. Remove a mode to excl
 }
 ```
 
----
 
 ## Reference
 
