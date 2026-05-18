@@ -59,10 +59,10 @@ uv run python hbp_experiment.py --concurrency 8 --judge gpt-5.4-2026-03-05 --eva
 
 Results are saved to `results/hbp_<timestamp>.jsonl` and cached per judge + strategy. Each record includes `rubric_text`, `labels` (majority-voted), `votes` (raw per-run outputs), `n_votes`, and an `error` field if the API call failed.
 
-`--eval-strategy` controls how failure modes are applied (default: `scoped`):
+`--eval-strategy` controls how failure modes are applied:
 
 - **`joined`** — all rubric criteria for a conversation are concatenated into one string and evaluated with all failure modes together. Equivalent to the paper's method.
-- **`scoped`** — criterion-scope failure modes run on each criterion individually; rubric-scope modes run on the full joined rubric. Produces `per_criterion` and `per_conversation` records, letting you pinpoint failure modes at the criterion level rather than just the rubric.
+- **`scoped`** (default) — criterion-scope failure modes run on each criterion individually; rubric-scope modes run on the full joined rubric. Produces `per_criterion` and `per_conversation` records, letting you pinpoint failure modes at the criterion level rather than just the rubric.
 
 
 ## Parameters
@@ -70,11 +70,12 @@ Results are saved to `results/hbp_<timestamp>.jsonl` and cached per judge + stra
 All experiments share the same CLI parameters:
 
 ```
---judge        gpt-5.4-2026-03-05        Judge model(s) to use, space-separated. See Judges section for available models.
---concurrency  10                         Max simultaneous API calls. Lower this if you hit rate limits.
---n            (experiment-specific)      Limit to first N items (rubrics or conversations). Useful for quick tests.
---votes        1                          Number of judge runs per rubric; majority vote is used when >1. The paper uses 5.
---no-cache     off                        Force re-run even if cached results exist for this judge + strategy.
+--judge            gpt-5.4-2026-03-05        Judge model(s) to use, space-separated. See Judges section for available models.
+--concurrency      10                         Max simultaneous API calls. Lower this if you hit rate limits.
+--n                (experiment-specific)      Limit to first N items (rubrics or conversations). Useful for quick tests.
+--votes            1                          Number of judge runs per rubric; majority vote is used when >1. The paper uses 5.
+--no-cache         off                        Force re-run even if cached results exist for this judge + strategy.
+--eval-strategy    scoped                     (HBP only) joined or scoped — see HBP experiment section for details.
 ```
 
 Defaults for `--n` and `--concurrency` differ per experiment — see each experiment section above.
@@ -86,9 +87,18 @@ Defaults for `--n` and `--concurrency` differ per experiment — see each experi
 |---|---|---|
 | `gpt-5.2-2025-12-11` | OpenAI | Paper's primary judge |
 | `gpt-5.4-2026-03-05` | OpenAI | Latest OpenAI judge |
-| `gemini-3.1-pro-preview` | Google | Latest Gemini judge |
+| `gemini-3.1-pro-preview` | Google | Latest Gemini Pro judge |
+| `gemini-3.1-flash-lite` | Google | Latest Gemini Flash judge |
 
 Pass one or more judges via `--judge`. Results for each judge are cached and analyzed separately.
+
+To register a new judge, add an entry to `JUDGE_REGISTRY` in the experiment file:
+
+```python
+"your-model-id": ("openai", "OPENAI_API_KEY"),  # or "google" + "GEMINI_API_KEY"
+```
+
+Then add the corresponding API key to `.env`.
 
 
 ## Failure modes
