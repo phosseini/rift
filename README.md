@@ -7,20 +7,16 @@ Automated diagnostics for rubric quality. RIFT classifies rubric criteria agains
 
 ## Failure modes
 
-| Mode | Scope | Category | Description |
-|---|---|---|---|
-| `subjective` | criterion | Reliability | Uses unanchored subjective terms |
-| `non_atomic` | criterion | Reliability | Bundles multiple independently scorable requirements |
-| `ungrounded` | criterion | Reliability | Requires verification without providing grounding |
-| `misaligned_or_rigid` | criterion | Content Validity | Grades wrong objective or over-constrains |
-| `missing_criteria` | rubric | Content Validity | Prompt implies requirements the rubric doesn't cover |
-| `hackable` | criterion | Consequential Validity | Gameable via proxy metrics |
-| `low_signal` | rubric | Consequential Validity | Rubric as a whole doesn't discriminate well |
-| `redundant_criteria` | rubric | Consequential Validity | Multiple criteria evaluate the same requirement |
-
-**Scope** determines which evaluation level is used in `scoped` strategy: `criterion` modes run on individual criteria; `rubric` modes run on the full joined rubric per conversation.
-
-Scopes can be overridden per-experiment in `config.json`.
+| Mode | Category | Description |
+|---|---|---|
+| `subjective` | Reliability | Uses unanchored subjective terms |
+| `non_atomic` | Reliability | Bundles multiple independently scorable requirements |
+| `ungrounded` | Reliability | Requires verification without providing grounding |
+| `misaligned_or_rigid` | Content Validity | Grades wrong objective or over-constrains |
+| `missing_criteria` | Content Validity | Prompt implies requirements the rubric doesn't cover |
+| `hackable` | Consequential Validity | Gameable via proxy metrics |
+| `low_signal` | Consequential Validity | Rubric as a whole doesn't discriminate well |
+| `redundant_criteria` | Consequential Validity | Multiple criteria evaluate the same requirement |
 
 
 ## Installation
