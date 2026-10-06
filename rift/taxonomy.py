@@ -78,7 +78,7 @@ FAILURE_MODES: list[FailureMode] = [
         }],
         fail_examples=[{
             "input_context": "Summarize the article.",
-            "rubric": "10 pts: Summary is clear, comprehensive, accurate, and engaging.",
+            "rubric": "10 pts: Summary is clear, accurate, comprehensive, concise, and engaging.",
         }],
     ),
     FailureMode(
@@ -98,12 +98,13 @@ FAILURE_MODES: list[FailureMode] = [
             "The criterion may be clearly worded (e.g., 'totals are correct'), yet graders "
             "still lack what they need to check correctness.\n"
             "- (B) Open-world requirements lack bounded audit procedure. The rubric demands broad "
-            "verification ('all facts are true,' 'links work,' 'fully original') without bounding: "
-            "what to check, which sources are allowed, how to resolve conflicting evidence, "
-            "and the pass/fail threshold.\n"
+            "verification (e.g., 'all facts are true,' 'restaurants are open right now,' "
+            "'fully original/no plagiarism,' 'links work') without bounding: what to check "
+            "(scope/sample size), which sources/tools are allowed, how to resolve conflicting "
+            "evidence, and the pass/fail threshold.\n"
             "- (C) Measurement standard is unspecified but could be made checkable. The rubric "
-            "requires a measurement that depends on an unspecified standard without defining "
-            "a rendering standard or offering a workable proxy.\n\n"
+            "requires a measurement that depends on an unspecified standard (e.g., 'exactly 20 pages') "
+            "without defining the rendering/formatting standard or offering a workable proxy.\n\n"
             "Do NOT apply if:\n"
             "- The requirement is simply missing from the rubric (use Missing Criteria).\n"
             "- The main issue is subjective wording without anchors (use Subjective). The rubric "
@@ -130,20 +131,20 @@ FAILURE_MODES: list[FailureMode] = [
         description=(
             "Apply when the rubric (a) grades the wrong objective for the prompt or embeds "
             "incorrect assumptions, OR (b) imposes unnecessarily strict or narrow requirements "
-            "not asked for by the prompt, predictably penalizing prompt-faithful high-quality answers.\n\n"
+            "not asked for by the prompt or reasonably inferred from the prompt, predictably penalizing prompt-faithful high-quality answers.\n\n"
             "How to determine (any applies):\n"
             "- Wrong task / shifted objective: makes non-requested deliverables mandatory for points.\n"
             "- Incorrect embedded assumptions: assumes a context not in the prompt (jurisdiction, "
             "audience, tools, constraints) and scores accordingly.\n"
-            "- Penalizes good practice: scores down reasonable caveats or uncertainty expressions "
+            "- Penalizes good practice: scores down reasonable caveats, uncertainty, or safety practices "
             "when the prompt does not forbid them.\n"
             "- Arbitrary brittleness/over-constraint: mandates a specific tool, library, method, "
-            "structure, or formatting when multiple reasonable alternatives satisfy the prompt.\n\n"
+            "structure, formatting, or false precision when multiple reasonable alternatives satisfy the prompt.\n\n"
             "Do NOT apply when:\n"
-            "- The prompt itself imposes the strictness (e.g., exact JSON keys, or a direct "
-            "instruction from the user in a chat conversation).\n"
+            "- The prompt itself imposes the strictness at any point (e.g., exact JSON keys, or a direct "
+            "instruction from the user earlier in a chat conversation).\n"
             "- The requirement is missing entirely (use Missing Criteria).\n"
-            "- The main problem is internal contradiction (use Self-Contradictory)"
+            "- The main problem is internal contradiction (use Self-Contradictory).\n"
             "- The main problem is rubric-level proxy gaming (use Hackable)."
         ),
         pass_examples=[{
@@ -191,7 +192,7 @@ FAILURE_MODES: list[FailureMode] = [
             "rubric": (
                 "3 pts: Output parses as JSON. "
                 "2 pts: Contains exactly keys name and age. "
-                "1 pt: name is a string; age is an integer. "
+                "2 pts: name is a string; age is an integer. "
                 "1 pt: No surrounding commentary."
             ),
         }],
@@ -209,16 +210,19 @@ FAILURE_MODES: list[FailureMode] = [
         description=(
             "Apply when the rubric is gameable at the rubric level: a responder could easily "
             "achieve a top score by inflating proxy metrics (length, number of bullets/sections/"
-            "items/citations/examples, repeated keywords) without materially improving correctness, "
+            "items/citations/examples/brands, repeated keywords) without materially improving correctness, "
             "relevance, or fulfillment of the prompt—and the rubric lacks strong quality gates "
             "that tie points to substantive, prompt-aligned success.\n\n"
             "Core question (required): Could I easily achieve full marks while still not "
             "satisfying the prompt requirements or producing a low-quality response?\n\n"
             "How to determine (any sufficient):\n"
-            "- Most points come from 'more' counts (≥N tips/citations/examples/pros/cons) while "
-            "relevance, non-duplication, and correctness are weakly specified or absent.\n"
+            "- Most points come from 'more' (≥N tips/citations/examples/pros/cons/sections) while "
+            "relevance, non-duplication, correctness, and prompt-specific success conditions are "
+            "weakly specified or absent.\n"
             "- Rewards merely asserting attributes ('quiet,' 'fast Wi-Fi,' 'no fees') without requiring evidence, linkage to the task, or checks against duplication.\n"
-            "- Counting proxies dominate while key prompt requirements have only weak gates.\n\n"
+            "- Counting proxies dominate while key prompt requirements have only weak gates "
+            "(e.g., no requirement that citations support specific claims; no requirement that "
+            "items be distinct and on-topic).\n\n"
             "Do NOT apply when:\n"
             "- Quantity minimums are paired with robust quality controls that make padding ineffective (e.g., each item must be non-duplicative, tied to a specific claim or user need, and verifiably grounded/bounded).\n"
             "- The main issue is that the rubric is generic and does not discriminate at all "
@@ -302,7 +306,7 @@ FAILURE_MODES: list[FailureMode] = [
             "rubric": (
                 "3 pts: Claims are supported by citations. "
                 "2 pts: Writing is well-organized. "
-                "2 pts: Evidence is grounded."
+                "2 pts: Includes limitations of the evidence."
             ),
         }],
         fail_examples=[{
