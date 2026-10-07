@@ -1,0 +1,47 @@
+# RIFT pipeline configuration. Everything non-secret the pipeline reads lives here;
+# API keys stay in .env. Resolved relative to the repo root, so scripts work from any
+# working directory. Point RIFT_CONFIG (or --config) at another YAML file to overlay
+# settings on top of this one, e.g. workspace-specific judges or negotiated prices.
+
+evaluation:
+  strategy: scoped        # joined | scoped  (CLI --eval-strategy overrides)
+  votes: 1                # judge runs per record; majority label when > 1 (CLI --votes overrides)
+  failure_modes:          # scope each failure mode is judged at in scoped mode
+    subjective:          criterion
+    non_atomic:          criterion
+    ungrounded:          criterion
+    misaligned_or_rigid: criterion
+    missing_criteria:    rubric
+    hackable:            criterion
+    low_signal:          rubric
+    redundant_criteria:  rubric
+
+judges:
+  default: gpt-5.4-2026-03-05
+  # Registered ids usable as --judge. provider picks the client; key_env names the .env
+  # variable holding the direct API key. If that key is missing and PORTKEY_API_KEY is set,
+  # the judge is routed through Portkey as <portkey.slugs[provider]>/<id>.
+  registry:
+    gpt-5.2-2025-12-11:     {provider: openai, key_env: OPENAI_API_KEY}
+    gpt-5.4-2026-03-05:     {provider: openai, key_env: OPENAI_API_KEY}
+    gemini-3.1-pro-preview: {provider: google, key_env: GEMINI_API_KEY}
+    gemini-3.1-flash-lite:  {provider: google, key_env: GEMINI_API_KEY}
+  portkey:
+    base_url: https://api.portkey.ai/v1      # PORTKEY_BASE_URL in .env overrides
+    slugs:                                   # model-catalog slugs, workspace-specific;
+      openai: "@openai"                      # PORTKEY_OPENAI_PROVIDER / PORTKEY_GOOGLE_PROVIDER override
+      google: "@google"
+
+# USD per 1M tokens, used to price each run in its .meta.json. Keys are matched against the
+# --judge name, then the Portkey wire model, then the model id with its @slug/ prefix stripped.
+# null = unknown: tokens are still recorded and the manifest marks cost as incomplete.
+# Portkey requests carry x-portkey-metadata run_id, so figures can be cross-checked in its logs.
+pricing:
+  gpt-6-astra:                     # Portkey built-in pricing engine, 2026-09-23; no cached-input rate given
+    input_per_1m: 10.0
+    output_per_1m: 50.0
+    cached_input_per_1m: null
+  claude-fable-5-1:                # Anthropic list price, 2026-09-23
+    input_per_1m: 10.0
+    output_per_1m: 50.0
+    cached_input_per_1m: 0.25

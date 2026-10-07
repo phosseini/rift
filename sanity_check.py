@@ -6,7 +6,7 @@ For each of the 8 failure modes the taxonomy provides:
   - A FAIL example: the rubric DOES exhibit this failure mode   → SHOULD be detected
 
 We run classify() on all 16 examples and report per-case results and an overall score.
-Run with one or both API keys set; whichever models are configured will be tested.
+Pass --judge to choose models; credentials resolve via rift.judges (direct keys or Portkey).
 """
 
 import asyncio
@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 
 from rift import ModelConfig, Rubric, classify
+from rift.judges import build_configs, default_judge, describe
 from rift.taxonomy import FAILURE_MODES
 
 load_dotenv()
@@ -89,27 +90,28 @@ def print_results(cases: list[TestCase], detected: list[set[str]], model: str) -
     return n_correct
 
 
-async def main() -> None:
-    openai_key = os.getenv("OPENAI_API_KEY")
-    google_key = os.getenv("GEMINI_API_KEY")
-
-    if not openai_key and not google_key:
-        sys.exit("Error: set at least one of OPENAI_API_KEY or GEMINI_API_KEY in .env")
+async def main(judges: list[str]) -> None:
+    if not (os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("PORTKEY_API_KEY")):
+        sys.exit("Error: set OPENAI_API_KEY, GEMINI_API_KEY, or PORTKEY_API_KEY in .env")
 
     cases = build_test_cases()
     print(f"Built {len(cases)} test cases  ({len(FAILURE_MODES)} failure modes × 2 examples each)")
 
-    configs: list[ModelConfig] = []
-    if openai_key:
-        configs.append(ModelConfig("gpt-5.4-2026-03-05", "openai", openai_key))
-    if google_key:
-        configs.append(ModelConfig("gemini-3.1-pro-preview", "google", google_key))
-
-    for config in configs:
-        print(f"\nRunning {len(cases)} classify() calls on {config.model} ...")
+    for config in build_configs(judges):
+        print(f"\nRunning {len(cases)} classify() calls on {describe(config)} ...")
         detected = await run_cases(cases, config)
         print_results(cases, detected, config.model)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--judge", nargs="+", default=[default_judge()], metavar="MODEL",
+                        help=f"Judge model(s) to sanity-check (default: {default_judge()})")
+    parser.add_argument("--config", default=None, metavar="YAML",
+                        help="Overlay YAML merged over config/rift.yaml (also $RIFT_CONFIG)")
+    args = parser.parse_args()
+    if args.config:
+        from rift import config as rift_config
+        rift_config.set_overlay(args.config)
+    asyncio.run(main(args.judge))

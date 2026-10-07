@@ -8,14 +8,13 @@ Results are written incrementally to results/prevalence_<timestamp>.jsonl and ca
 so the experiment can be re-run for analysis without repeating API calls.
 
 Usage:
-    uv run python prevalence_experiment.py --n 50 --concurrency 10
-    uv run python prevalence_experiment.py --n 50 --no-cache
+    uv run python experiments/prevalence.py --n 50 --concurrency 10
+    uv run python experiments/prevalence.py --n 50 --no-cache
 """
 
 import argparse
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -30,6 +29,8 @@ from rift.data.loaders import (
     load_researchrubrics,
     load_wildchecklists,
 )
+from rift.experiment import run_classify as shared_run_classify
+from rift.judges import build_configs, describe
 from rift.schema import Rubric
 from rift.taxonomy import FAILURE_MODES
 
@@ -61,7 +62,7 @@ TABLE2 = {
 
 # ── result file helpers ───────────────────────────────────────────────────────
 
-RESULTS_DIR = Path("results")
+from rift.experiment import RESULTS_DIR  # repo-root results/, whatever the working directory  # noqa: E402
 
 
 def _result_path(timestamp: str) -> Path:
@@ -96,66 +97,14 @@ async def run_classify(
     out_path: Path,
     n_votes: int = 1,
 ) -> list[dict]:
-    fm_labels = LABELS
-    semaphore = asyncio.Semaphore(concurrency)
-    failed = 0
+    """All sources in one joined pass through the shared runner (rift.experiment)."""
+    flat = [rubric for rubrics in rubrics_by_source.values() for rubric in rubrics]
+    print(f"Classifying {len(flat)} rubrics with {config.model} (concurrency={concurrency}) ...")
+    return await shared_run_classify(
+        flat, config, FAILURE_MODES, concurrency, out_path,
+        dataset_name="prevalence", eval_mode="joined", n_votes=n_votes, timeout=120,
+    )
 
-    flat: list[tuple[str, Rubric]] = [
-        (source, rubric)
-        for source, rubrics in rubrics_by_source.items()
-        for rubric in rubrics
-    ]
-
-    async def classify_one(source: str, rubric: Rubric) -> dict:
-        nonlocal failed
-        async with semaphore:
-            record = {
-                "judge_model": config.model,
-                "eval_mode": "joined",
-                "included_failure_modes": fm_labels,
-                "n_votes": n_votes,
-                "source": source,
-                **rubric.metadata,
-                "rubric_text": rubric.rubric_text,
-            }
-            last_error = None
-            for attempt in range(3):
-                try:
-                    result = await asyncio.wait_for(
-                        classify(rubric, config, n_votes=n_votes), timeout=120
-                    )
-                    record.update({
-                        "labels": sorted(lbl.label for lbl in result.labels),
-                        "votes": [
-                            [{"label": lbl.label, "justification": lbl.justification, "quote": lbl.quote} for lbl in run]
-                            for run in result.votes
-                        ],
-                    })
-                    last_error = None
-                    break
-                except Exception as e:
-                    last_error = f"{type(e).__name__}: {e}"
-                    await asyncio.sleep(2 ** attempt)
-            if last_error:
-                failed += 1
-                record.update({"labels": [], "votes": [], "error": last_error})
-            return record
-
-    tasks = [asyncio.create_task(classify_one(src, r)) for src, r in flat]
-    records = []
-
-    with open(out_path, "w") as f, tqdm(total=len(flat), unit="rubric", dynamic_ncols=True) as bar:
-        for coro in asyncio.as_completed(tasks):
-            record = await coro
-            f.write(json.dumps(record) + "\n")
-            f.flush()
-            records.append(record)
-            bar.update(1)
-
-    if failed:
-        print(f"  [warn] {failed}/{len(flat)} calls failed — error field set in JSONL records.")
-
-    return records
 
 # ── analysis ──────────────────────────────────────────────────────────────────
 
@@ -205,29 +154,13 @@ def print_comparison_table(records: list[dict]) -> None:
 
 # ── main ─────────────────────────────────────────────────────────────────────
 
-JUDGE_REGISTRY: dict[str, tuple[str, str]] = {
-    "gpt-5.2-2025-12-11":         ("openai", "OPENAI_API_KEY"),
-    "gpt-5.4-2026-03-05":         ("openai", "OPENAI_API_KEY"),
-    "gemini-3.1-pro-preview":     ("google", "GEMINI_API_KEY"),
-    "gemini-3.1-flash-lite":      ("google", "GEMINI_API_KEY"),
-}
-
 DEFAULT_JUDGES = ["gpt-5.4-2026-03-05", "gemini-3.1-pro-preview"]
-
-
-def build_configs(judges: list[str]) -> list[ModelConfig]:
-    configs = []
-    for model in judges:
-        if model not in JUDGE_REGISTRY:
-            sys.exit(f"Unknown judge '{model}'. Known: {list(JUDGE_REGISTRY)}")
-        provider, env_var = JUDGE_REGISTRY[model]
-        key = os.getenv(env_var) or sys.exit(f"{env_var} not set in .env")
-        configs.append(ModelConfig(model, provider, key))
-    return configs
 
 
 async def main(n: int, concurrency: int, no_cache: bool, judges: list[str], n_votes: int = 1) -> None:
     configs = build_configs(judges)
+    for c in configs:
+        print(f"Judge: {describe(c)}")
 
     print(f"Loading {n} rubrics from each of {len(SOURCES)} sources ...")
     rubrics_by_source: dict[str, list[Rubric]] = {}
@@ -263,8 +196,13 @@ if __name__ == "__main__":
     parser.add_argument("--no-cache", action="store_true",
                         help="Re-run even if cached results exist")
     parser.add_argument("--judge", nargs="+", default=DEFAULT_JUDGES, metavar="MODEL",
-                        help=f"Judge model(s). Known: {list(JUDGE_REGISTRY)}. Default: {DEFAULT_JUDGES}")
+                        help=f"Judge model(s), space-separated (registered id, @portkey/address, or portkey:model). Default: {DEFAULT_JUDGES}")
     parser.add_argument("--votes", type=int, default=1,
                         help="Number of judge runs per rubric; majority vote used when >1 (default: 1)")
+    parser.add_argument("--config", default=None, metavar="YAML",
+                        help="Overlay YAML merged over config/rift.yaml (also $RIFT_CONFIG)")
     args = parser.parse_args()
+    if args.config:
+        from rift import config as rift_config
+        rift_config.set_overlay(args.config)
     asyncio.run(main(args.n, args.concurrency, args.no_cache, args.judge, args.votes))

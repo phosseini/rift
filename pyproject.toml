@@ -10,6 +10,7 @@ dependencies = [
     "matplotlib>=3.10.9",
     "seaborn>=0.13.2",
     "scikit-learn>=1.8.0",
+    "pyyaml>=6.0.3",
 ]
 
 [build-system]
@@ -21,6 +22,8 @@ allow-direct-references = true
 
 [dependency-groups]
 dev = ["python-dotenv>=1.0"]
+# Optional: Excel-backed rubric files (uv sync --group xlsx)
+xlsx = ["pandas>=2.0", "openpyxl>=3.1"]
 notebooks = ["jupyter>=1.0", "pandas>=2.0", "matplotlib>=3.7", "seaborn>=0.13"]
 
 [tool.pytest.ini_options]
